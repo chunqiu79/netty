@@ -75,7 +75,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
     private final SocketChannelConfig config;
 
     /**
-     * Create a new instance
+     * 无参构造函数，会被反射调用
      */
     public NioSocketChannel() {
         this(DEFAULT_SELECTOR_PROVIDER);
@@ -103,6 +103,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
      */
     public NioSocketChannel(Channel parent, SocketChannel socket) {
         super(parent, socket);
+        // 这里就会设置 config
         config = new NioSocketChannelConfig(this, socket.socket());
     }
 

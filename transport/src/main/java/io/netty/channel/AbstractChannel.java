@@ -70,8 +70,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      */
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
+        // 每个 channel 的唯一标识
         id = newId();
+        // unsafe
         unsafe = newUnsafe();
+        // 流水线，包含1个 ChannelHandler链表 用于处理或者拦截Channel的 inbound 和 outbound 操作
         pipeline = newChannelPipeline();
     }
 
@@ -474,15 +477,18 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            // 绑定事件循环器
             AbstractChannel.this.eventLoop = eventLoop;
 
             if (eventLoop.inEventLoop()) {
+                // 将 channel 注册 到 selector上
                 register0(promise);
             } else {
                 try {
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
+                            // 将 channel 注册 到 selector上
                             register0(promise);
                         }
                     });
@@ -505,15 +511,17 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                // 将 channel 注册到 selector
                 doRegister();
                 neverRegistered = false;
                 registered = true;
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                // 回调 handlerAdded 事件
                 pipeline.invokeHandlerAddedIfNeeded();
-
                 safeSetSuccess(promise);
+                // 传播 channelRegistered 事件
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.

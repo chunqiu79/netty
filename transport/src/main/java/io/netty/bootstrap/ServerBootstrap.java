@@ -48,10 +48,24 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     // The order in which child ChannelOptions are applied is important they may depend on each other for validation
     // purposes.
+    /**
+     * 作用在每一个接入的 客户端Channel（即SocketChannel）上
+     * 用于配置具体的客户端连接参数，控制单个连接的行为和性能
+     * childOption 配置的是每个客户端连接的属性，在每次新的客户端连接被接受时应用到该连接的通道上
+     */
     private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
+    /**
+     * childAttrs 应用于 每个客户端连接的Channel，是针对具体连接的自定义属性
+     */
     private final Map<AttributeKey<?>, Object> childAttrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
+    /**
+     * 当前配置对象
+     */
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
     private volatile EventLoopGroup childGroup;
+    /**
+     * 其实就是 work 的 EventLoopGroup 对应的handler，用于处理 work逻辑的
+     */
     private volatile ChannelHandler childHandler;
 
     public ServerBootstrap() { }
@@ -75,9 +89,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     /**
-     * Set the {@link EventLoopGroup} for the parent (acceptor) and the child (client). These
-     * {@link EventLoopGroup}'s are used to handle all the events and IO for {@link ServerChannel} and
-     * {@link Channel}'s.
+     * 一般服务端会调用这个方法用来设置对应的 boss 和 worker 对应的 group
+     * parentGroup 其实就是 boss的 EventLoopGroup，用来处理服务端的 accept 事件
+     * childGroup 其实就是 worker 的 EventLoopGroup，用来处理服务端的 读写 事件
      */
     public ServerBootstrap group(EventLoopGroup parentGroup, EventLoopGroup childGroup) {
         super.group(parentGroup);
@@ -129,7 +143,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     @Override
     void init(Channel channel) {
+        // 设置 options ，
         setChannelOptions(channel, newOptionsArray(), logger);
+        // 设置 attrs ，自定义属性
         setAttributes(channel, newAttributesArray());
 
         ChannelPipeline p = channel.pipeline();
@@ -139,10 +155,13 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         final Entry<ChannelOption<?>, Object>[] currentChildOptions = newOptionsArray(childOptions);
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = newAttributesArray(childAttrs);
 
+        // 服务端启动需要执行的逻辑
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) {
                 final ChannelPipeline pipeline = ch.pipeline();
+
+                // 添加 用户自定义的handler 逻辑
                 ChannelHandler handler = config.handler();
                 if (handler != null) {
                     pipeline.addLast(handler);

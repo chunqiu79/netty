@@ -56,15 +56,43 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     @SuppressWarnings("unchecked")
     private static final Map.Entry<AttributeKey<?>, Object>[] EMPTY_ATTRIBUTE_ARRAY = new Map.Entry[0];
 
+    /**
+     * 组模型
+     * 如果是 ServerBootstrap，则是2个组 boss和 worker
+     * 如果是 Bootstrap，则是1个组 worker
+     */
     volatile EventLoopGroup group;
+    /**
+     * channel模型
+     * 如果是 ServerBootstrap，则是 NioServerSocketChannel
+     * 如果是 Bootstrap，则是 NioSocketChannel
+     * 类型是 ReflectiveChannelFactory<T>
+     */
     @SuppressWarnings("deprecation")
     private volatile ChannelFactory<? extends C> channelFactory;
+    /**
+     *
+     */
     private volatile SocketAddress localAddress;
 
     // The order in which ChannelOptions are applied is important they may depend on each other for validation
     // purposes.
+    /**
+     * 作用在服务器端的监听Channel（即ServerSocketChannel）上
+     * 用于配置服务器的全局参数，控制服务器在接收客户端连接之前的行为
+     * option 配置的是服务器整体的属性，只在监听通道上生效
+     */
     private final Map<ChannelOption<?>, Object> options = new LinkedHashMap<ChannelOption<?>, Object>();
+    /**
+     * 自定义属性，用来在 channel 中存储一些需要客户端和服务端通用的属性以及对应的值
+     * 如：登录状态（用于服务端设置登录成功，客户端判断然后才能发送消息等）
+     *
+     * attrs 应用于 服务器Channel，是全局属性
+     */
     private final Map<AttributeKey<?>, Object> attrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
+    /**
+     *
+     */
     private volatile ChannelHandler handler;
 
     AbstractBootstrap() {
@@ -240,9 +268,10 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * Create a new {@link Channel} and bind it.
+     * 服务端启动
      */
     public ChannelFuture bind(int inetPort) {
+        // 这里会创建一个 InetSocketAddress 对象
         return bind(new InetSocketAddress(inetPort));
     }
 
@@ -264,11 +293,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * Create a new {@link Channel} and bind it.
      */
     public ChannelFuture bind(SocketAddress localAddress) {
+        // 校验
         validate();
+        // 真正的bind do
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 初始化&注册
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
@@ -278,6 +310,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            // 绑定端口
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
@@ -295,7 +328,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                         // Registration was successful, so set the correct executor to use.
                         // See https://github.com/netty/netty/issues/2586
                         promise.registered();
-
+                        // 绑定端口
                         doBind0(regFuture, channel, localAddress, promise);
                     }
                 }
@@ -307,7 +340,10 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            // 创建 服务端|客户端的 channel
+            // 内部会对 config 进行设置
             channel = channelFactory.newChannel();
+            // 初始化 服务端|客户端 channel
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -319,7 +355,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-
+        // 注册 服务端|客户端 channel
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -445,6 +481,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         for (Map.Entry<AttributeKey<?>, Object> e: attrs) {
             @SuppressWarnings("unchecked")
             AttributeKey<Object> key = (AttributeKey<Object>) e.getKey();
+            // 将 每个 attr 设置到 channel 中
             channel.attr(key).set(e.getValue());
         }
     }
@@ -460,6 +497,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     private static void setChannelOption(
             Channel channel, ChannelOption<?> option, Object value, InternalLogger logger) {
         try {
+            // 将 option 设置到 config 中
             if (!channel.config().setOption((ChannelOption<Object>) option, value)) {
                 logger.warn("Unknown channel option '{}' for channel '{}'", option, channel);
             }
