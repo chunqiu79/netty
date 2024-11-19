@@ -110,8 +110,8 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
             // surprises if a ChannelInitializer will add another ChannelInitializer. This is as all handlers
             // will be added in the expected order.
             if (initChannel(ctx)) {
-
-                // We are done with init the Channel, removing the initializer now.
+                // 删除 系统内置的 初始化器
+                // io.netty.bootstrap.ServerBootstrap.init
                 removeState(ctx);
             }
         }

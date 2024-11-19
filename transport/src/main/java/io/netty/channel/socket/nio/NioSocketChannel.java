@@ -76,20 +76,22 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
     /**
      * 无参构造函数，会被反射调用
+     * 1. 继续调用构造方法 ==> this(DEFAULT_SELECTOR_PROVIDER)
      */
     public NioSocketChannel() {
         this(DEFAULT_SELECTOR_PROVIDER);
     }
 
     /**
-     * Create a new instance using the given {@link SelectorProvider}.
+     * 1. jdk 底层创建 SocketChannel ==> newSocket(provider)
+     * 2. 继续调用构造函数 ==> this(newSocket(provider))
      */
     public NioSocketChannel(SelectorProvider provider) {
         this(newSocket(provider));
     }
 
     /**
-     * Create a new instance using the given {@link SocketChannel}.
+     * 1. 继续调用构造函数 parent为null ==> this(null, socket)
      */
     public NioSocketChannel(SocketChannel socket) {
         this(null, socket);

@@ -141,9 +141,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * 1. 给 channel 设置 options
+     * 2. 给 channel 设置 attrs
+     * 3. 给 server 添加特殊的 handler
+     */
     @Override
     void init(Channel channel) {
-        // 设置 options ，
+        // 设置 options ，socket参数
         setChannelOptions(channel, newOptionsArray(), logger);
         // 设置 attrs ，自定义属性
         setAttributes(channel, newAttributesArray());
@@ -156,9 +161,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = newAttributesArray(childAttrs);
 
         // 服务端启动需要执行的逻辑
+        // 添加 特殊的handler
         p.addLast(new ChannelInitializer<Channel>() {
+            /**
+             * 执行这个 initChannel 是通过 io.netty.channel.ChannelInitializer#initChannel(io.netty.channel.ChannelHandlerContext)调用过来的
+             */
             @Override
             public void initChannel(final Channel ch) {
+                // 这里是 server 的 pipeline
                 final ChannelPipeline pipeline = ch.pipeline();
 
                 // 添加 用户自定义的handler 逻辑
@@ -166,10 +176,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 if (handler != null) {
                     pipeline.addLast(handler);
                 }
-
+                // 这里需要获取 boss线程，但是 这个线程最开始还在执行io.netty.channel.AbstractChannel.AbstractUnsafe.register0
+                // 是从 register0 的 pipeline.invokeHandlerAddedIfNeeded() 临时调过来的，需要等 register0 执行完，线程才有空闲
+                // 这里会将 ServerBootstrapAcceptor 添加到 handler 中
+                // 注意：1个 channel 只会绑定到 1个 eventLoop 上面，1个 eventLoop 对应 1个线程
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
+                        // 将 ServerBootstrapAcceptor 添加到 pipeline中
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }

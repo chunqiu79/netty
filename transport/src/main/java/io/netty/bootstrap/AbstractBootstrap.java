@@ -299,6 +299,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
+    /**
+     * 服务端-绑定
+     * 1. 初始化&注册 ==> initAndRegister()
+     * 2. 绑定 ==> doBind0()
+     */
     private ChannelFuture doBind(final SocketAddress localAddress) {
         // 初始化&注册
         final ChannelFuture regFuture = initAndRegister();
@@ -337,6 +342,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    /**
+     * 1. 创建channel ==> channelFactory.newChannel()
+     * 2. 初始化channel ==> init(channel)
+     * 3. 注册channel ==> register(channel)
+     */
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
@@ -356,6 +366,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
         // 注册 服务端|客户端 channel
+        // 如果是服务端，这里的 config().group() 就是 bossGroup
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -385,6 +396,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
         // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
         // the pipeline in its channelRegistered() implementation.
+        // 这里 也是需要 最开始的 eventLoop 的线程执行
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {

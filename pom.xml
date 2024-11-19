@@ -535,6 +535,7 @@
     <module>transport-blockhound-tests</module>
     <module>microbench</module>
     <module>bom</module>
+    <module>netty-chunqiu79</module>
   </modules>
 
   <dependencyManagement>

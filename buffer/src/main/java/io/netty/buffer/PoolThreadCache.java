@@ -17,8 +17,6 @@
 package io.netty.buffer;
 
 
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
-
 import io.netty.buffer.PoolArena.SizeClass;
 import io.netty.util.internal.MathUtil;
 import io.netty.util.internal.ObjectPool;
@@ -34,12 +32,10 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
+
 /**
- * Acts a Thread cache for allocations. This implementation is moduled after
- * <a href="https://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf">jemalloc</a> and the descripted
- * technics of
- * <a href="https://www.facebook.com/notes/facebook-engineering/scalable-memory-allocation-using-jemalloc/480222803919">
- * Scalable memory allocation using jemalloc</a>.
+ * PoolThreadCache 是每个线程私有的缓存空间
  */
 final class PoolThreadCache {
 
@@ -165,8 +161,10 @@ final class PoolThreadCache {
             return false;
         }
         boolean allocated = cache.allocate(buf, reqCapacity, this);
+        // freeSweepAllocationThreshold = SystemPropertyUtil.getInt("io.netty.allocator.cacheTrimInterval", 8192);
         if (++ allocations >= freeSweepAllocationThreshold) {
             allocations = 0;
+            // 执行 trim，进行内存整理
             trim();
         }
         return allocated;
@@ -332,6 +330,10 @@ final class PoolThreadCache {
         }
     }
 
+    /**
+     * MemoryRegionCache 实际就是一个队列
+     * 当内存释放时，将内存块加入队列当中，下次再分配同样规格的内存时，直接从队列中取出空闲的内存块
+     */
     private abstract static class MemoryRegionCache<T> {
         private final int size;
         private final Queue<Entry<T>> queue;

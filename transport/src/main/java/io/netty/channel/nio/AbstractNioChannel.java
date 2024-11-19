@@ -51,6 +51,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             InternalLoggerFactory.getInstance(AbstractNioChannel.class);
 
     private final SelectableChannel ch;
+    /**
+     * server启动的时候赋值为 accept
+     */
     protected final int readInterestOp;
     volatile SelectionKey selectionKey;
     boolean readPending;
@@ -70,17 +73,15 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     private SocketAddress requestedRemoteAddress;
 
     /**
-     * Create a new instance
-     *
-     * @param parent            the parent {@link Channel} by which this instance was created. May be {@code null}
-     * @param ch                the underlying {@link SelectableChannel} on which it operates
-     * @param readInterestOp    the ops to set to receive data from the {@link SelectableChannel}
+     * 1. 调用父类构造方法 ==> super(parent)
+     * 2. 设置当前channel相关信息
      */
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent);
         this.ch = ch;
         // 设置当前关注的事件
         // NioServerSocketChannel 设置的是 SelectionKey.OP_ACCEPT
+        // NioSocketChannel 设置的是 SelectionKey.OP_READ
         this.readInterestOp = readInterestOp;
         try {
             // 设置非阻塞
@@ -376,8 +377,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     }
 
     /**
-     * 注册
-     * @throws Exception
+     * 注册，将 channel 注册到 selector 上面
      */
     @Override
     protected void doRegister() throws Exception {
@@ -417,6 +417,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         readPending = true;
 
         final int interestOps = selectionKey.interestOps();
+
+        // server 启动最后会将 accept 事件 添加到服务端 channel 的 selectionKey 里面
+        // client 启动最后会将 read 事件 添加到客户端 channel 的 selectionKey 里面
         if ((interestOps & readInterestOp) == 0) {
             selectionKey.interestOps(interestOps | readInterestOp);
         }

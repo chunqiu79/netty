@@ -21,9 +21,19 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+/**
+ * 用来替换 SelectorImpl 内部的 selectedKeys 集合
+ * 使用 数组 来替换 hashset，效率高
+ * 添加不需要进行hash计算，然后弄链表等操作
+ * 删除，如果是清空的话，直接重置 size 即可（这个size其实就是一个计数器，用来表示数组中实际存储的元素数量）
+ * 查询差不多，但是密集一些
+ */
 final class SelectedSelectionKeySet extends AbstractSet<SelectionKey> {
 
     SelectionKey[] keys;
+    /**
+     * 一个计数器 size 跟踪数组中实际存储的元素数量
+     */
     int size;
 
     SelectedSelectionKeySet() {

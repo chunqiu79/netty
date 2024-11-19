@@ -15,15 +15,13 @@
  */
 package io.netty.handler.codec;
 
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
-import static io.netty.util.internal.ObjectUtil.checkPositive;
-import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
 
 import java.nio.ByteOrder;
 import java.util.List;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
+import static io.netty.util.internal.ObjectUtil.*;
 
 /**
  * A decoder that splits the received {@link ByteBuf}s dynamically by the
@@ -187,15 +185,47 @@ import io.netty.channel.ChannelHandlerContext;
 public class LengthFieldBasedFrameDecoder extends ByteToMessageDecoder {
 
     private final ByteOrder byteOrder;
+    /**
+     * 报文最大限制长度
+     */
     private final int maxFrameLength;
+    /**
+     * 长度字段的偏移量，也就是存放长度数据的起始位置
+     */
     private final int lengthFieldOffset;
+    /**
+     * 长度字段所占用的字节数
+     */
     private final int lengthFieldLength;
+    /**
+     * 长度字段结束的偏移量，lengthFieldEndOffset = lengthFieldOffset + lengthFieldLength
+     */
     private final int lengthFieldEndOffset;
+    /**
+     * 消息长度的修正值
+     * 在很多较为复杂一些的协议设计中，长度域不仅仅包含消息的长度，而且包含其他的数据，如版本号、数据类型、数据状态等，那么这时候我们需要使用 lengthAdjustment 进行修正
+     * lengthAdjustment = 包体的长度值 - 长度域的值
+     */
     private final int lengthAdjustment;
+    /**
+     * 解码后需要跳过的初始字节数，也就是消息内容字段的起始位置
+     */
     private final int initialBytesToStrip;
+    /**
+     * 是否立即抛出 TooLongFrameException，与 maxFrameLength 搭配使用
+     */
     private final boolean failFast;
+    /**
+     * 是否处于丢弃模式
+     */
     private boolean discardingTooLongFrame;
+    /**
+     * 需要丢弃的字节数
+     */
     private long tooLongFrameLength;
+    /**
+     * 累计丢弃的字节数
+     */
     private long bytesToDiscard;
 
     /**

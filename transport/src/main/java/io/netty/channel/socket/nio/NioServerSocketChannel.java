@@ -53,12 +53,6 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     private static ServerSocketChannel newSocket(SelectorProvider provider) {
         try {
-            /**
-             *  Use the {@link SelectorProvider} to open {@link SocketChannel} and so remove condition in
-             *  {@link SelectorProvider#provider()} which is called by each ServerSocketChannel.open() otherwise.
-             *
-             *  See <a href="https://github.com/netty/netty/issues/2308">#2308</a>.
-             */
             // 返回一个 ServerSocketChannel 对象
             return provider.openServerSocketChannel();
         } catch (IOException e) {
@@ -71,20 +65,22 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     /**
      * 无参构造函数，会被反射调用
+     * 1. 创建1个 ServerSocketChannel 对象 ==> newSocket(provider)
+     * 2. 继续调用构造方法
      */
     public NioServerSocketChannel() {
         this(newSocket(DEFAULT_SELECTOR_PROVIDER));
     }
 
-    /**
-     * Create a new instance using the given {@link SelectorProvider}.
-     */
     public NioServerSocketChannel(SelectorProvider provider) {
         this(newSocket(provider));
     }
 
     /**
-     * Create a new instance using the given {@link ServerSocketChannel}.
+     * 1. 调用父类构造方法 ==> super(null, channel, SelectionKey.OP_ACCEPT)
+     *      parent: null，没有父类
+     *      事件类型：accept
+     * 2. 创建1个 NioServerSocketChannelConfig config对象 ==> new NioServerSocketChannelConfig(this, javaChannel().socket())
      */
     public NioServerSocketChannel(ServerSocketChannel channel) {
         // SelectionKey.OP_ACCEPT accept事件

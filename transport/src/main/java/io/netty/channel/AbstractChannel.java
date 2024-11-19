@@ -54,6 +54,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private volatile SocketAddress localAddress;
     private volatile SocketAddress remoteAddress;
     private volatile EventLoop eventLoop;
+    /**
+     * channel 是否注册到 selector 上
+     * 启动的时候 调用 register0() 内部会设置为 true
+     */
     private volatile boolean registered;
     private boolean closeInitiated;
     private Throwable initialCloseCause;
@@ -63,18 +67,19 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private String strVal;
 
     /**
-     * Creates a new instance.
-     *
-     * @param parent
-     *        the parent of this channel. {@code null} if there's no parent.
+     * 1. 设置 parent
+     * 2. 创建&设置 channel 唯一标识 ==> newId()
+     * 3. 创建&设置 unsafe ==> newUnsafe()
+     * 4. 创建&设置 pipeline ==> newChannelPipeline()
      */
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
         // 每个 channel 的唯一标识
         id = newId();
-        // unsafe
+        // unsafe，操作底层数据的读写操作
         unsafe = newUnsafe();
-        // 流水线，包含1个 ChannelHandler链表 用于处理或者拦截Channel的 inbound 和 outbound 操作
+        // 流水线，负责业务处理器的编排，包含1个 ChannelHandler链表 用于处理或者拦截Channel的 inbound 和 outbound 操作
+        // 内部只会设置 head 和 tail 节点
         pipeline = newChannelPipeline();
     }
 
@@ -481,7 +486,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             AbstractChannel.this.eventLoop = eventLoop;
 
             if (eventLoop.inEventLoop()) {
-                // 将 channel 注册 到 selector上
+                // 将 channel 注册 到 selector 上
                 register0(promise);
             } else {
                 try {
@@ -503,6 +508,12 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
 
+        /**
+         * 1. 将 channel 注册到 selector 上 ==> doRegister()
+         * 2. 回调 handlerAdded 事件 ==> pipeline.invokeHandlerAddedIfNeeded()
+         * 3. 传播 channelRegistered 事件 ==> pipeline.fireChannelRegistered()
+         * 4. （当前如果是激活状态）触发 active 事件 ==> pipeline.fireChannelActive()
+         */
         private void register0(ChannelPromise promise) {
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register
@@ -527,6 +538,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 // multiple channel actives if the channel is deregistered and re-registered.
                 if (isActive()) {
                     if (firstRegistration) {
+                        // 触发 active 事件
                         pipeline.fireChannelActive();
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
@@ -544,6 +556,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
 
+        /**
+         * 1. 调用 jdk 底层进行绑定 ==> doBind(localAddress)
+         * 2. 触发 channelActive事件 ==> pipeline.fireChannelActive()
+         */
         @Override
         public final void bind(final SocketAddress localAddress, final ChannelPromise promise) {
             assertEventLoop();
@@ -578,6 +594,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 invokeLater(new Runnable() {
                     @Override
                     public void run() {
+                        // 触发 channelActive 事件
                         pipeline.fireChannelActive();
                     }
                 });

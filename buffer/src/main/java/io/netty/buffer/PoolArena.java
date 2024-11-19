@@ -29,6 +29,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.netty.buffer.PoolChunk.isSubpage;
 import static java.lang.Math.max;
 
+/**
+ * 1核分配4个，多个线程共享，每个线程会固定绑定1个 PoolArena
+ */
 abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
     static final boolean HAS_UNSAFE = PlatformDependent.hasUnsafe();
 
@@ -41,12 +44,18 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
 
     final int numSmallSubpagePools;
     final int directMemoryCacheAlignment;
+    /**
+     * PoolSubpage[] 用于分配小于8k的内存
+     */
     private final PoolSubpage<T>[] smallSubpagePools;
+    /**
+     * PoolChunkList 用于分配大于8k的内存
+     */
 
-    private final PoolChunkList<T> q050;
-    private final PoolChunkList<T> q025;
-    private final PoolChunkList<T> q000;
     private final PoolChunkList<T> qInit;
+    private final PoolChunkList<T> q000;
+    private final PoolChunkList<T> q025;
+    private final PoolChunkList<T> q050;
     private final PoolChunkList<T> q075;
     private final PoolChunkList<T> q100;
 
@@ -144,7 +153,7 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
 
     private void tcacheAllocateSmall(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity,
                                      final int sizeIdx) {
-
+        // 优先从 PoolThreadCache 中分配内存
         if (cache.allocateSmall(this, buf, reqCapacity, sizeIdx)) {
             // was able to allocate out of the cache so move on
             return;
@@ -178,6 +187,7 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
 
     private void tcacheAllocateNormal(PoolThreadCache cache, PooledByteBuf<T> buf, final int reqCapacity,
                                       final int sizeIdx) {
+        // 优先从 PoolThreadCache 中分配内存
         if (cache.allocateNormal(this, buf, reqCapacity, sizeIdx)) {
             // was able to allocate out of the cache so move on
             return;
@@ -190,6 +200,8 @@ abstract class PoolArena<T> extends SizeClasses implements PoolArenaMetric {
 
     // Method must be called inside synchronized(this) { ... } block
     private void allocateNormal(PooledByteBuf<T> buf, int reqCapacity, int sizeIdx, PoolThreadCache threadCache) {
+        // TODO: 2024/11/12 为啥是从q050开始而不是qInit开始依次递增
+        // 链表访问顺序，q050->q025->q000->qInit->q075
         if (q050.allocate(buf, reqCapacity, sizeIdx, threadCache) ||
             q025.allocate(buf, reqCapacity, sizeIdx, threadCache) ||
             q000.allocate(buf, reqCapacity, sizeIdx, threadCache) ||

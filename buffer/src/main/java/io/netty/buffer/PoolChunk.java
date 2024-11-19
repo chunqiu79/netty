@@ -127,7 +127,7 @@ import java.util.PriorityQueue;
  * 2) if the subpage is not used or it is a run, then start free this run
  * 3) merge continuous avail runs
  * 4) save the merged run
- *
+ * 每个 PoolChunk 默认大小为 16M，PoolChunk 是通过伙伴算法管理多个 Page，每个 PoolChunk 被划分为 2048 个 Page
  */
 final class PoolChunk<T> implements PoolChunkMetric {
     private static final int SIZE_BIT_LENGTH = 15;
@@ -142,6 +142,9 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     final PoolArena<T> arena;
     final Object base;
+    /**
+     * 存储的数据
+     */
     final T memory;
     final boolean unpooled;
 
@@ -157,6 +160,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     /**
      * manage all subpages in this chunk
+     * PoolChunk 中管理的 2048 个 8K 内存块
+     * 注意：Netty 中并没有 Page 的定义，直接使用 PoolSubpage 表示
      */
     private final PoolSubpage<T>[] subpages;
 
@@ -170,7 +175,9 @@ final class PoolChunk<T> implements PoolChunkMetric {
     //
     // This may be null if the PoolChunk is unpooled as pooling the ByteBuffer instances does not make any sense here.
     private final Deque<ByteBuffer> cachedNioBuffers;
-
+    /**
+     * 剩余内存大小
+     */
     int freeBytes;
 
     PoolChunkList<T> parent;
@@ -408,16 +415,10 @@ final class PoolChunk<T> implements PoolChunkMetric {
     }
 
     /**
-     * Create / initialize a new PoolSubpage of normCapacity. Any PoolSubpage created / initialized here is added to
-     * subpage pool in the PoolArena that owns this PoolChunk
-     *
-     * @param sizeIdx sizeIdx of normalized size
-     *
-     * @return index in memoryMap
+     * 在分配小于 8K 的内存时，PoolChunk 不在分配单独的 Page，而是将 Page 划分为更小的内存块，由 PoolSubpage 进行管理
      */
     private long allocateSubpage(int sizeIdx) {
-        // Obtain the head of the PoolSubPage pool that is owned by the PoolArena and synchronize on it.
-        // This is need as we may add it back and so alter the linked-list structure.
+        // 根据内存大小找到 PoolArena 中 subpage 数组对应的头结点
         PoolSubpage<T> head = arena.findSubpagePoolHead(sizeIdx);
         synchronized (head) {
             //allocate a new run

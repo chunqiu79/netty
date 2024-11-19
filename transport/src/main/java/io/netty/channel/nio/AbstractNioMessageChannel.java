@@ -36,7 +36,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
     boolean inputShutdown;
 
     /**
-     * @see AbstractNioChannel#AbstractNioChannel(Channel, SelectableChannel, int)
+     * 1. 调用父类构造方法 ==> super(parent, ch, readInterestOp)
      */
     protected AbstractNioMessageChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent, ch, readInterestOp);

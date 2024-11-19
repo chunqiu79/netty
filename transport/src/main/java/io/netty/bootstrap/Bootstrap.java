@@ -131,7 +131,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
-     * Connect a {@link Channel} to the remote peer.
+     * 客户端连接
      */
     public ChannelFuture connect(SocketAddress remoteAddress) {
         ObjectUtil.checkNotNull(remoteAddress, "remoteAddress");
@@ -149,9 +149,12 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
-     * @see #connect()
+     * 客户端-连接
+     * 1. 初始化和注册 channel ==> initAndRegister()
+     * 2. 连接 ==> doResolveAndConnect0(channel, remoteAddress, localAddress, channel.newPromise())
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
+        // 初始化和注册 channel
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
 
@@ -159,6 +162,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             if (!regFuture.isSuccess()) {
                 return regFuture;
             }
+            // 连接
             return doResolveAndConnect0(channel, remoteAddress, localAddress, channel.newPromise());
         } else {
             // Registration future is almost always fulfilled already, but just in case it's not.
@@ -256,12 +260,20 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         });
     }
 
+    /**
+     * 客户端初始化
+     * 1. pipeline 中添加启动自定义的 handler ==> p.addLast(config.handler())
+     * 2. 设置options，socket参数 ==> setChannelOptions(channel, newOptionsArray(), logger)
+     * 3. 设置attrs，自定义参数 ==> setAttributes(channel, newAttributesArray())
+     */
     @Override
     void init(Channel channel) {
         ChannelPipeline p = channel.pipeline();
+        // pipeline 中添加启动自定义的 handler
         p.addLast(config.handler());
-
+        // 设置 options，socket参数
         setChannelOptions(channel, newOptionsArray(), logger);
+        // 设置attrs，自定义参数
         setAttributes(channel, newAttributesArray());
     }
 
